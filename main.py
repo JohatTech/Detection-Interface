@@ -3,14 +3,18 @@ import sys
 import time
 
 import cv2
+import torch
+from ultralytics import YOLO
 from PySide6.QtCore import Qt, QThread, Signal, Slot
-from PySide6.QtGui import QAction, QImage, QKeySequence, QPixmap
-from PySide6.QtWidgets import (QApplication, QComboBox, QGroupBox,
+from PySide6.QtGui import QAction, QImage, QKeySequence, QPixmap, QIcon
+from PySide6.QtWidgets import (QApplication, QSlider, QComboBox, QGroupBox,
                                QHBoxLayout, QLabel, QMainWindow, QPushButton,
                                QSizePolicy, QVBoxLayout, QWidget)
 
 
-
+model = YOLO("yolo11n")
+conf_options = [0.25, 0.50, 0.60, 0.80, 0.90]
+DEVICE = torch.device("cuda") if torch.cuda.is_available else torch.device("cpu")
 
 
 class Thread(QThread):
@@ -19,14 +23,18 @@ class Thread(QThread):
         QThread.__init__(self, parent)
         self.status = True
         self.cap = True
+        self.confidence = None  
+        
     def run(self):
         self.cap = cv2.VideoCapture(0)
         while self.status:
             ret, frame = self.cap.read()
             if not ret:
                 continue
-            
-            color_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            results = model.predict(frame, device = "cpu" , conf=0.8)
+            print(self.confidence)
+            annotated_frame = results[0].plot()
+            color_frame = cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB)
             
             h, w, ch = color_frame.shape
             img = QImage(color_frame.data, w,h, ch*w, QImage.Format_RGB888)
@@ -41,6 +49,7 @@ class Window(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Applus+ Detector")
+        self.setWindowIcon(QIcon("./Logo-Applus_orange.jpg"))
         self.setGeometry(0,0,800,500)
         
     
@@ -50,30 +59,54 @@ class Window(QMainWindow):
 
 
         #camera label 
-        self.label = QLabel(self)
-        self.label.setFixedSize(640,480)
+        self.camera_label = QLabel(self)
+        self.camera_label.setFixedSize(640,480)
+        
+        #confidence slider setting 
+        
+        self.conf_options = [0.25, 0.50, 0.60, 0.80, 0.90]
+        self.config_label = QLabel("Seleciona un umbral de confianza", self)   
+        self.slider = QSlider(Qt.Vertical, self)
+        self.slider.setMinimum(0)
+        self.slider.setMaximum(len(self.conf_options)-1)
+        self.slider.setTickPosition(QSlider.TicksAbove)
+        self.slider.setTickInterval(1)
+        self.slider.valueChanged.connect(self.update_conf)
+        
+        # Crear el layout de etiquetas de valores
+        labels_layout = QVBoxLayout()
+        for value in reversed(self.conf_options):  # Invertimos el orden para que coincidan con los ticks
+            label = QLabel(f"{value}")
+            labels_layout.addWidget(label,1)
+                
+        slider_layout = QHBoxLayout()
+        slider_layout.addLayout(labels_layout)
+        slider_layout.addWidget(self.slider)
+
+        camera_slider_layout = QHBoxLayout()
+        camera_slider_layout.addWidget(self.camera_label)
+        camera_slider_layout.addLayout(slider_layout)
         
         
+        #thread setting 
         self.th = Thread(self)
         self.th.finished.connect(self.close)
         self.th.updatedFrame.connect(self.setImage)
         
         #Button layout 
         buttons_layout = QHBoxLayout()
-        self.button1 = QPushButton("Start")
-        self.button2 = QPushButton("Stop")
+        self.start_button = QPushButton("Start")
+        self.close_button = QPushButton("Stop")
  
-        buttons_layout.addWidget(self.button2)
-        buttons_layout.addWidget(self.button1)
-        
-        
+        buttons_layout.addWidget(self.close_button)
+        buttons_layout.addWidget(self.start_button)
         right_layout = QHBoxLayout()
-        right_layout.addLayout(buttons_layout, 1)
+        right_layout.addLayout(buttons_layout)
 
 
         #main layout
         layout = QVBoxLayout()
-        layout.addWidget(self.label)
+        layout.addLayout(camera_slider_layout)
         layout.addLayout(right_layout)
         
         #central widget 
@@ -84,15 +117,15 @@ class Window(QMainWindow):
         
         #connections
         
-        self.button1.clicked.connect(self.start)
-        self.button2.clicked.connect(self.kill_thread)
-        self.button2.setEnabled(False)
+        self.start_button.clicked.connect(self.start)
+        self.close_button.clicked.connect(self.kill_thread)
+        self.close_button.setEnabled(False)
         
     @Slot()
     def kill_thread(self):
         print("finishing...")
-        self.button2.setEnabled(False)
-        self.button1.setEnabled(True)
+        self.close_button.setEnabled(False)
+        self.start_button.setEnabled(True)
         self.th.cap.release()
         cv2.destroyAllWindows()
         self.status = False
@@ -101,14 +134,19 @@ class Window(QMainWindow):
     @Slot()   
     def start(self):
         print("Starting...")
-        self.button2.setEnabled(True)
-        self.button1.setEnabled(False)
+        self.close_button.setEnabled(True)
+        self.start_button.setEnabled(False)
         self.th.start()
     @Slot(QImage)    
     def setImage(self, image):
-        self.label.setPixmap(QPixmap.fromImage(image))
+        self.camera_label.setPixmap(QPixmap.fromImage(image))
         
+    @Slot()
+    def update_conf(self, value):
+        self.th.confidence = self.conf_options[value]
+
         
+            
 if __name__=="__main__":
     app = QApplication()
     window = Window()
