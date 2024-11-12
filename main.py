@@ -6,7 +6,7 @@ import cv2
 import torch
 from ultralytics import YOLO
 from PySide6.QtCore import Qt, QThread, Signal, Slot
-from PySide6.QtGui import QAction, QImage, QKeySequence, QPixmap, QIcon
+from PySide6.QtGui import QAction, QImage, QKeySequence, QPixmap, QIcon, QPalette, QColor
 from PySide6.QtWidgets import (QApplication, QSlider, QComboBox, QGroupBox,
                                QHBoxLayout, QLabel, QMainWindow, QPushButton,
                                QSizePolicy, QVBoxLayout, QWidget)
@@ -14,16 +14,19 @@ from PySide6.QtWidgets import (QApplication, QSlider, QComboBox, QGroupBox,
 
 model = YOLO("yolo11n")
 conf_options = [0.25, 0.50, 0.60, 0.80, 0.90]
-DEVICE = torch.device("cuda") if torch.cuda.is_available else torch.device("cpu")
+if not torch.cuda.is_available:
+    DEVICE= "cpu"
+else:
+    DEVICE ="cuda"
 
-
+print(DEVICE)
 class Thread(QThread):
     updatedFrame = Signal(QImage)
     def __init__(self, parent=None):
         QThread.__init__(self, parent)
         self.status = True
         self.cap = True
-        self.confidence = None  
+        self.confidence = 0.25  
         
     def run(self):
         self.cap = cv2.VideoCapture(0)
@@ -31,25 +34,38 @@ class Thread(QThread):
             ret, frame = self.cap.read()
             if not ret:
                 continue
-            results = model.predict(frame, device = "cpu" , conf=0.8)
+            results = model.predict(frame, device ='cpu', conf=self.confidence)
             print(self.confidence)
             annotated_frame = results[0].plot()
             color_frame = cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB)
             
-            h, w, ch = color_frame.shape
+            h, w, ch = color_frame.shapeEEE
             img = QImage(color_frame.data, w,h, ch*w, QImage.Format_RGB888)
             scaled_img = img.scaled(640, 480, Qt.KeepAspectRatio)
+            
             self.updatedFrame.emit(scaled_img)
+            print(f" This is the class predicted : {results[0]}")
 
         sys.exit(-1)
 
-
-
+#
+# <palette>
+#   <color name="Atomic tangerine" hex="FDAD8A" r="253" g="173" b="138" />
+#   <color name="Pale Dogwood" hex="FED8CA" r="254" g="216" b="202" />
+#   <color name="Pumpkin" hex="FE6601" r="254" g="102" b="1" />
+#   <color name="Pumpkin" hex="FE6601" r="254" g="102" b="1" />
+#   <color name="Raw umber" hex="8E6656" r="142" g="102" b="86" />
+# </palette>
+# # #
 class Window(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Applus+ Detector")
         self.setWindowIcon(QIcon("./Logo-Applus_orange.jpg"))
+        # palette = QPalette()
+        # palette.setColor(QPalette.Window, QColor(252, 102, 2))  # Set background color of the window
+        # palette.setColor(QPalette.WindowText, QColor(255, 255, 255))  # Set text color to white
+        # self.setPalette(palette)
         self.setGeometry(0,0,800,500)
         
     
@@ -78,7 +94,7 @@ class Window(QMainWindow):
         for value in reversed(self.conf_options):  # Invertimos el orden para que coincidan con los ticks
             label = QLabel(f"{value}")
             labels_layout.addWidget(label,1)
-                
+        
         slider_layout = QHBoxLayout()
         slider_layout.addLayout(labels_layout)
         slider_layout.addWidget(self.slider)
