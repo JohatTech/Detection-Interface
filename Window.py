@@ -12,12 +12,12 @@ from Thread import Thread
 class Window(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Applus+ Detector")
-        self.setWindowIcon(QIcon("./Logo-Applus_orange.jpg"))
-        # palette = QPalette()
-        # palette.setColor(QPalette.Window, QColor(252, 102, 2))  # Set background color of the window
-        # palette.setColor(QPalette.WindowText, QColor(255, 255, 255))  # Set text color to white
-        # self.setPalette(palette)
+        self.setWindowTitle("Applus+ Vision")
+        self.setWindowIcon(QIcon("./images/Logo-Applus_orange.jpg"))
+        palette = QPalette()
+        palette.setColor(QPalette.Window, QColor(255, 255, 255))  # Set background color of the window
+        palette.setColor(QPalette.WindowText, QColor(0, 0, 0))  # Set text color to white
+        self.setPalette(palette)
         self.setGeometry(0,0,800,500)
         
     
@@ -29,6 +29,7 @@ class Window(QMainWindow):
         #camera label 
         self.camera_label = QLabel(self)
         self.camera_label.setFixedSize(640,480)
+        self.camera_label.setStyleSheet("background-color: black; color: transparent ; font-size: 20px; ")
         
         #confidence slider setting 
         
@@ -50,6 +51,7 @@ class Window(QMainWindow):
         slider_layout = QHBoxLayout()
         slider_layout.addLayout(labels_layout)
         slider_layout.addWidget(self.slider)
+        slider_layout.addWidget(self.config_label)
 
         camera_slider_layout = QHBoxLayout()
         camera_slider_layout.addWidget(self.camera_label)
@@ -63,8 +65,10 @@ class Window(QMainWindow):
         
         #Button layout 
         buttons_layout = QHBoxLayout()
-        self.start_button = QPushButton("Start")
-        self.close_button = QPushButton("Stop")
+        self.start_button = QPushButton("Iniciar")
+        self.start_button.setStyleSheet("background-color: green; color: white ; font-size: 20px; ")
+        self.close_button = QPushButton("Detener")
+        self.close_button.setStyleSheet("background-color: red; color: white ; font-size: 20px; ")
  
         buttons_layout.addWidget(self.close_button)
         buttons_layout.addWidget(self.start_button)
@@ -77,14 +81,12 @@ class Window(QMainWindow):
         layout.addLayout(camera_slider_layout)
         layout.addLayout(right_layout)
         
-        #central widget 
-        
+        #central widget  
         widget = QWidget(self)
         widget.setLayout(layout)
         self.setCentralWidget(widget)
         
         #connections
-        
         self.start_button.clicked.connect(self.start)
         self.close_button.clicked.connect(self.kill_thread)
         self.close_button.setEnabled(False)
@@ -98,7 +100,7 @@ class Window(QMainWindow):
         cv2.destroyAllWindows()
         self.status = False
         self.th.terminate()
-        time.sleep(1)
+    
     @Slot()   
     def start(self):
         print("Starting...")
