@@ -11,7 +11,7 @@ class Window(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Applus+ Vision 1.0")
-        self.setWindowIcon(QIcon("./images/Logo-Applus_orange.jpg"))
+        self.setWindowIcon(QIcon("./Logo-Applus_orange.jpg"))
         palette = QPalette()
         palette.setColor(QPalette.Window, QColor(255, 255, 255))  # Set background color of the window
         palette.setColor(QPalette.WindowText, QColor(0, 0, 0))  # Set text color to white

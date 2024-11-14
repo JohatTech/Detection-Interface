@@ -15,7 +15,7 @@ else:
     # La aplicación está corriendo en modo de desarrollo
     modelo_path = './detector.pt'
 
-model = YOLO("yolo11n.pt")
+model = YOLO(modelo_path)
 
 
 
@@ -60,7 +60,7 @@ class Thread(QThread):
                         class_id = int(det.cls)
                         class_name=result.names[class_id]
                         confid = det.conf.item()
-                        if class_name == "laptop" and confid >=0.70:
+                        if class_name == "poste" and confid >=0.70:
                             cv2.imwrite(f"./resultados/Poste_{i}.jpg", frame)
                             self.update_message.emit(f"Imagen de poste numero: {i} Guardado!")
                             i += 1  
