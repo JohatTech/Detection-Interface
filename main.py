@@ -1,13 +1,10 @@
-import os
 import sys
-import time
-
 from Window import Window
 
-from PySide6.QtWidgets import QApplication
+from PyQt5.QtWidgets import QApplication
             
 if __name__=="__main__":
-    app = QApplication()
+    app = QApplication(sys.argv)
     window = Window()
     window.show()
 
