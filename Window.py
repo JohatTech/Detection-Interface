@@ -3,7 +3,7 @@ from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtCore import pyqtSlot as Slot
 
 from PyQt5.QtGui import  QImage, QPixmap, QIcon, QPalette, QColor
-from PyQt5.QtWidgets import ( QSlider, QHBoxLayout, QLabel, QMainWindow, QPushButton, QVBoxLayout, QWidget, QFileDialog)
+from PyQt5.QtWidgets import ( QSlider, QComboBox, QHBoxLayout, QLabel, QMainWindow, QPushButton, QVBoxLayout, QWidget, QAction, QFileDialog)
 from Thread import Thread
 
 
@@ -31,6 +31,10 @@ class Window(QMainWindow):
         self.shoot_label.setFixedSize(640,480)
         self.shoot_label.setStyleSheet("background-color: black; color: transparent ; font-size: 20px; ")
 
+        self.camera_selection= QComboBox()
+        self.camera_selection.addItem("Camera 1")
+        
+        self.camera_selection.addItem("Camera 2")
         #stream camera label 
         self.camera_label = QLabel(self)
         self.camera_label.setFixedSize(640,480)
@@ -40,15 +44,15 @@ class Window(QMainWindow):
         camera_shoot_layout.addWidget(self.camera_label)
         camera_shoot_layout.addWidget(self.shoot_label)
  
-        # #menu bar
-        # menu_bar = self.menuBar()
-        # file_menu = menu_bar.addMenu("Archivo")
+        #menu bar
+        menu_bar = self.menuBar()
+        file_menu = menu_bar.addMenu("Archivos")
 
-        # load_action = QAction("Load image", self)
-        # load_action.triggered.connect(self.load_file)
-        # file_menu.addAction(load_action)
+        load_action = QAction("Cargar image", self)
+        file_menu.addAction(load_action)
+        load_action.triggered.connect(self.load_file)
         
-        #confidence slider setting 
+        # confidence slider setting 
         
         self.conf_options = [0.25, 0.50, 0.60, 0.80, 0.90]
         self.config_label = QLabel("Ajuste de nivel de confianza", self)   
@@ -68,6 +72,7 @@ class Window(QMainWindow):
         slider_layout = QHBoxLayout()
         slider_layout.addWidget(self.slider)
         slider_layout.addWidget(self.config_label)
+        slider_layout.addWidget(self.camera_selection)
 
         camera_slider_layout = QVBoxLayout()
         camera_slider_layout.addLayout(camera_shoot_layout)
@@ -82,6 +87,7 @@ class Window(QMainWindow):
         self.th.update_message.connect(self.display_message)
         self.th.updatedCapture.connect(self.setCapture)
         
+        
         #timer
         self.message_reset = QTimer(self)
         self.message_reset.setSingleShot(True)
@@ -93,13 +99,13 @@ class Window(QMainWindow):
         self.start_button.setStyleSheet("background-color: green; color: white ; font-size: 20px; ")
         self.close_button = QPushButton("Detener")
         self.close_button.setStyleSheet("background-color: red; color: white ; font-size: 20px; ")
-
- 
         buttons_layout.addWidget(self.close_button)
         buttons_layout.addWidget(self.start_button)
         buttons_layout.addWidget(self.message_label)
         right_layout = QHBoxLayout()
         right_layout.addLayout(buttons_layout)
+        #camera selection
+
 
 
 
@@ -123,17 +129,20 @@ class Window(QMainWindow):
         print("finishing...")
         self.close_button.setEnabled(False)
         self.start_button.setEnabled(True)
+        self.message_label.setText("Deteccion finalizada")
         self.th.cap.release()
-        cv2.destroyAllWindows()
         self.status = False
         self.th.terminate()
+
     
     @Slot()   
     def start(self):
         print("Starting...")
+        self.message_label.setText("Iniciando...")
         self.close_button.setEnabled(True)
         self.start_button.setEnabled(False)
         self.th.start()
+        self.message_label.setText("Detectando...")
     @Slot(QImage)    
     def setImage(self, image):
         self.camera_label.setPixmap(QPixmap.fromImage(image))
@@ -154,7 +163,29 @@ class Window(QMainWindow):
     def reset_message(self):
         self.message_label.setText("Detectando...")
         self.message_label.setStyleSheet("background-color: black; color: white; font-size: 20px")
-   
+    
+    @Slot()
+    def cameraselected(self):
+        if self.camera_selection.currentIndex == 0:
+            self.th.camera_index = 0 
+        else:
+            self.th.camera_index = 1
 
+
+    @Slot()
+    def load_file(self):
+        options = QFileDialog.Options()
+
+        file_path, _ = QFileDialog.getOpenFileName(self,
+                                                  "Open File",
+                                                  "",  # Initial directory
+                                                   "All Files (*);;Text Files (*.txt);;Images (*.png *.jpg)",  # File filters
+                                                   options=options
+                                                  )
+        if file_path:
+            print("file loaded")
+            self.th.file_path = file_path
+        else:
+            print("file not readed")
         
         
