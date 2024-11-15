@@ -28,10 +28,10 @@ class Thread(QThread):
         self.cap = True
         self.frame_count = 0
         self.confidence = 0.25
+        self.i=0
 
 
     def run(self):
-        i=0
         print(self.device)
         if self.file_path !=None:
             self.cap = cv2.VideoCapture(self.file_path)
@@ -47,13 +47,16 @@ class Thread(QThread):
             
             if not ret:
                 continue
-            results = self.inference(frame)
+            results = self.inference(self.model,frame)
             annotated_frame = results[0].plot()
-            self.updatedFrame(self.post_processImage(annotated_frame))       
+
+            self.updatedFrame.emit(self.post_processImage(annotated_frame))       
             
             if self.frame_count % 30 == 0:
                 detection = self.findClass(results)
-                self.take_phot(detection, frame)
+                self.take_phot(frame, detection)
+
+
     def load_model(self):
         if getattr(sys, "frozen", False):
             modelo_path = os.path.join(sys._MEIPASS, 'detector.pt')
@@ -83,10 +86,10 @@ class Thread(QThread):
     def take_phot(self, frame, detection):
         for class_name, confid in detection:
             if class_name == "poste" and confid >= 0.70:
-                i += 1  
-                cv2.imwrite(f"./resultados/Poste_{i}.jpg", frame)
-                self.update_message.emit(f"Imagen de poste numero: {i} Guardado!")
-                self.updatedCapture(self.post_processImage(frame))
+                self.i += 1  
+                cv2.imwrite(f"./resultados/Poste_{self.i}.jpg", frame)
+                self.update_message.emit(f"Imagen de poste numero: {self.i} Guardado!")
+                self.updatedCapture.emit(self.post_processImage(frame))
 
     def findClass(self, results):
         detected_classes = []  # List to hold detected classes and confidences
@@ -98,5 +101,5 @@ class Thread(QThread):
 
                 # Append the class and confidence to the list
                 detected_classes.append((class_name, confid))
-                return detected_classes  # Return all detected classes
+        return detected_classes  # Return all detected classes
         
