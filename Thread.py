@@ -87,17 +87,16 @@ class Thread(QThread):
                 cv2.imwrite(f"./resultados/Poste_{i}.jpg", frame)
                 self.update_message.emit(f"Imagen de poste numero: {i} Guardado!")
                 self.updatedCapture(self.post_processImage(frame))
-                
+
     def findClass(self, results):
         detected_classes = []  # List to hold detected classes and confidences
-            for result in results:
-                for det in result.boxes:
-                    class_id = int(det.cls)
-                    class_name = result.names[class_id]
-                    confid = det.conf.item()
+        for result in results:
+            for det in result.boxes:
+                class_id = int(det.cls)
+                class_name = result.names[class_id]
+                confid = det.conf.item()
 
-                    # Append the class and confidence to the list
-                    detected_classes.append((class_name, confid))
-
-        return detected_classes  # Return all detected classes
+                # Append the class and confidence to the list
+                detected_classes.append((class_name, confid))
+                return detected_classes  # Return all detected classes
         
