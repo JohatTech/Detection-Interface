@@ -7,34 +7,13 @@ from PyQt5.QtWidgets import ( QSlider, QComboBox, QHBoxLayout, QLabel, QMainWind
 from Thread import Thread
 
 
-class Window(QMainWindow):
-    def __init__(self):
-        super().__init__()
-        self.setWindowTitle("Applus+ Vision 1.0")
-        self.setWindowIcon(QIcon("./Logo-Applus_orange.jpg"))
-        palette = QPalette()
-        palette.setColor(QPalette.Window, QColor(255, 255, 255))  # Set background color of the window
-        palette.setColor(QPalette.WindowText, QColor(0, 0, 0))  # Set text color to white
-        self.setPalette(palette)
-        self.setGeometry(0,0,800,500)
-
-        widget = QWidget(self)
-        layout = QVBoxLayout(self)
-        widget.setLayout(layout)
-        #message label
-        self.message_label = QLabel("Detectando...",self)
-        self.message_label.setAlignment(Qt.AlignCenter)
-        self.message_label.setStyleSheet("background-color: Black; color: white; font-size: 20px")
-        
+class CameraDisplay(QWidget):
+    def __init__(self, parent= None):
+        super().__init__(parent)
         #photo shooting label 
         self.shoot_label = QLabel(self)
         self.shoot_label.setFixedSize(640,480)
         self.shoot_label.setStyleSheet("background-color: black; color: transparent ; font-size: 20px; ")
-
-        self.camera_selection= QComboBox()
-        self.camera_selection.addItem("Camera 1")
-        
-        self.camera_selection.addItem("Camera 2")
         #stream camera label 
         self.camera_label = QLabel(self)
         self.camera_label.setFixedSize(640,480)
@@ -44,14 +23,9 @@ class Window(QMainWindow):
         camera_shoot_layout.addWidget(self.camera_label)
         camera_shoot_layout.addWidget(self.shoot_label)
  
-        #menu bar
-        menu_bar = self.menuBar()
-        file_menu = menu_bar.addMenu("Archivos")
-
-        load_action = QAction("Cargar image", self)
-        file_menu.addAction(load_action)
-        load_action.triggered.connect(self.load_file)
-        
+class ConfigSlider(QWidget):
+    def __init__(self, parent= None):
+        super().__init__(parent)
         # confidence slider setting 
         
         self.conf_options = [0.25, 0.50, 0.60, 0.80, 0.90]
@@ -72,46 +46,48 @@ class Window(QMainWindow):
         slider_layout = QHBoxLayout()
         slider_layout.addWidget(self.slider)
         slider_layout.addWidget(self.config_label)
-        slider_layout.addWidget(self.camera_selection)
+    def update_conf(self, value):
+        self.th.confidence = self.conf_options[value]
 
-        camera_slider_layout = QVBoxLayout()
-        camera_slider_layout.addLayout(camera_shoot_layout)
-        camera_slider_layout.addLayout(labels_layout)
-        camera_slider_layout.addLayout(slider_layout)
+
+class Window(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Applus+ Vision 1.0")
+        self.setWindowIcon(QIcon("./Logo-Applus_orange.jpg"))
+        palette = QPalette()
+        palette.setColor(QPalette.Window, QColor(255, 255, 255))  # Set background color of the window
+        palette.setColor(QPalette.WindowText, QColor(0, 0, 0))  # Set text color to white
+        self.setPalette(palette)
+        self.setGeometry(0,0,800,500)
+
+        widget = QWidget(self)
+        layout = QVBoxLayout(self)
+        widget.setLayout(layout)
+        #message label
         
+        self.camera_selection= QComboBox()
+        self.camera_selection.addItem("Camera 1")
+        self.camera_selection.addItem("Camera 2")
         
-        #thread setting 
-        self.th = Thread(self)
-        self.th.finished.connect(self.close)
-        self.th.updatedFrame.connect(self.setImage)
-        self.th.update_message.connect(self.display_message)
-        self.th.updatedCapture.connect(self.setCapture)
+        #menu bar
+        menu_bar = self.menuBar()
+        file_menu = menu_bar.addMenu("Archivos")
+
+        load_action = QAction("Cargar image", self)
+        file_menu.addAction(load_action)
+        load_action.triggered.connect(self.load_file)
         
+        self.camera_shoot_layout = CameraDisplay(self)
+        self.slider_layout = ConfigSlider(self)
+        self.thread_setup()
+        self.message_setup()
+        right_layout = self.set_btn()
         
-        #timer
-        self.message_reset = QTimer(self)
-        self.message_reset.setSingleShot(True)
-        self.message_reset.timeout.connect(self.reset_message)
-
-        #Button layout 
-        buttons_layout = QHBoxLayout()
-        self.start_button = QPushButton("Iniciar")
-        self.start_button.setStyleSheet("background-color: green; color: white ; font-size: 20px; ")
-        self.close_button = QPushButton("Detener")
-        self.close_button.setStyleSheet("background-color: red; color: white ; font-size: 20px; ")
-        buttons_layout.addWidget(self.close_button)
-        buttons_layout.addWidget(self.start_button)
-        buttons_layout.addWidget(self.message_label)
-        right_layout = QHBoxLayout()
-        right_layout.addLayout(buttons_layout)
-        #camera selection
-
-
-
-
         #main layout
         layout = QVBoxLayout()
-        layout.addLayout(camera_slider_layout)
+        layout.addLayout(self.camera_shoot_layout)
+        layout.addLayout(self.slider_layout)
         layout.addLayout(right_layout)
         
         #central widget  
@@ -124,6 +100,36 @@ class Window(QMainWindow):
         self.close_button.clicked.connect(self.kill_thread)
         self.close_button.setEnabled(False)
         
+    def thread_setup(self):
+        self.th = Thread(self)
+        self.th.finished.connect(self.close)
+        self.th.updatedFrame.connect(self.setImage)
+        self.th.update_message.connect(self.display_message)
+        self.th.updatedCapture.connect(self.setCapture)
+    def message_setup(self):
+        #messages
+        self.message_label = QLabel("Detectando...",self)
+        self.message_label.setAlignment(Qt.AlignCenter)
+        self.message_label.setStyleSheet("background-color: Black; color: white; font-size: 20px")
+        
+        #timer
+        self.message_reset = QTimer(self)
+        self.message_reset.setSingleShot(True)
+        self.message_reset.timeout.connect(self.reset_message)
+    def set_btn(self):
+        #Button layout
+        buttons_layout = QHBoxLayout()
+        self.start_button = QPushButton("Iniciar")
+        self.start_button.setStyleSheet("background-color: green; color: white ; font-size: 20px; ")
+        self.close_button = QPushButton("Detener")
+        self.close_button.setStyleSheet("background-color: red; color: white ; font-size: 20px; ")
+        buttons_layout.addWidget(self.close_button)
+        buttons_layout.addWidget(self.start_button)
+        buttons_layout.addWidget(self.message_label)
+        right_layout = QHBoxLayout()
+        right_layout.addLayout(buttons_layout)
+        return right_layout
+
     @Slot()
     def kill_thread(self):
         print("finishing...")
@@ -145,10 +151,10 @@ class Window(QMainWindow):
         self.message_label.setText("Detectando...")
     @Slot(QImage)    
     def setImage(self, image):
-        self.camera_label.setPixmap(QPixmap.fromImage(image))
+        self.camera_shoot_layout.camera_label.setPixmap(QPixmap.fromImage(image))
     @Slot(QImage)
     def setCapture(self, capture):
-        self.shoot_label.setPixmap(QPixmap.fromImage(capture))
+        self.camera_shoot_layout.shoot_label.setPixmap(QPixmap.fromImage(capture))
         
     @Slot(str)
     def display_message(self, message):

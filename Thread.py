@@ -21,7 +21,6 @@ class Thread(QThread):
     def __init__(self, parent=None):
         QThread.__init__(self, parent)
         self.status = True
-        self.model = self.load_model()
         self.get_device()
         self.camera_index = 0
         self.file_path = None
@@ -32,29 +31,25 @@ class Thread(QThread):
 
 
     def run(self):
+        self.model = self.load_model()
         print(self.device)
         if self.file_path !=None:
             self.cap = cv2.VideoCapture(self.file_path)
-
-           
-        if not self.cap.isOpened():
+        else:         
             self.cap = cv2.VideoCapture(self.camera_index)
             print(f"camara encendida: {self.camera_index}")
-                
         while self.status:
             ret, frame = self.cap.read()
             self.frame_count += 1      
-            
-            if not ret:
-                continue
+           
             results = self.inference(self.model,frame)
             annotated_frame = results[0].plot()
-
             self.updatedFrame.emit(self.post_processImage(annotated_frame))       
             
-            if self.frame_count % 30 == 0:
+            if self.frame_count % 20 == 0:
                 detection = self.findClass(results)
-                self.take_phot(frame, detection)
+                self.take_photo(frame, detection)
+                continue 
 
 
     def load_model(self):
@@ -73,17 +68,19 @@ class Thread(QThread):
                 self.device = "cpu"
 
     def inference(self,model, frame):
-        results = model(frame, device = self.device, conf=self.confidence)
+        results = model.predict(frame, device = self.device, conf=self.confidence, half=True)
         return results
     
     def post_processImage(self, frame):
+
         color_captured = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         h, w, ch = color_captured.shape
         capture = QImage(color_captured.data, w,h, ch*w, QImage.Format_RGB888)
         scaled_capture = capture.scaled(640, 480, Qt.KeepAspectRatio)
         return scaled_capture
-    
-    def take_phot(self, frame, detection):
+
+
+    def take_photo(self, frame, detection):
         for class_name, confid in detection:
             if class_name == "poste" and confid >= 0.70:
                 self.i += 1  
