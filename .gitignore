@@ -4,6 +4,8 @@
 /dist
 /build
 /resultados
+/logs
+/.pytest_cache
 Applus Vision 1.0.spec
 main.spec
 video-test1.mp4

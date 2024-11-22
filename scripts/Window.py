@@ -1,31 +1,63 @@
-import cv2
+from logs.logger_config import get_logger
+from scripts.Thread import Thread
+from scripts.CameraDisplay import CameraDisplay
+
 from PyQt5.QtCore import Qt, QTimer
 from PyQt5.QtCore import pyqtSlot as Slot
-
 from PyQt5.QtGui import  QImage, QPixmap, QIcon, QPalette, QColor
 from PyQt5.QtWidgets import ( QSlider, QComboBox, QHBoxLayout, QLabel, QMainWindow, QPushButton, QVBoxLayout, QWidget, QAction, QFileDialog)
-from Thread import Thread
 
 
-class CameraDisplay(QWidget):
-    def __init__(self, parent= None):
-        super().__init__(parent)
-        #photo shooting label 
-        self.shoot_label = QLabel(self)
-        self.shoot_label.setFixedSize(640,480)
-        self.shoot_label.setStyleSheet("background-color: black; color: transparent ; font-size: 20px; ")
-        #stream camera label 
-        self.camera_label = QLabel(self)
-        self.camera_label.setFixedSize(640,480)
-        self.camera_label.setStyleSheet("background-color: black; color: transparent ; font-size: 20px; ")
+logger = get_logger(__name__)
 
-        camera_shoot_layout = QHBoxLayout()
-        camera_shoot_layout.addWidget(self.camera_label)
-        camera_shoot_layout.addWidget(self.shoot_label)
- 
-class ConfigSlider(QWidget):
-    def __init__(self, parent= None):
-        super().__init__(parent)
+class Window(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Applus+ Vision 1.0")
+        self.setWindowIcon(QIcon("./images/logo.jpg"))
+        palette = QPalette()
+        palette.setColor(QPalette.Window, QColor(255, 255, 255))  # Set background color of the window
+        palette.setColor(QPalette.WindowText, QColor(0, 0, 0))  # Set text color to white
+        self.setPalette(palette)
+        self.setGeometry(0,0,800,500)
+        logger.info("WINDOW SETUP")
+        widget = QWidget(self)
+        layout = QVBoxLayout()
+
+        self.camera_selection= QComboBox()
+        self.camera_selection.addItem("Camera 1")
+        self.camera_selection.addItem("Camera 2")
+        
+        #menu bar
+        menu_bar = self.menuBar()
+        file_menu = menu_bar.addMenu("Archivos")
+        load_action = QAction("Cargar image", self)
+        file_menu.addAction(load_action)
+        load_action.triggered.connect(self.load_file)
+        
+        self.camera_shoot_layout = CameraDisplay(self)
+        self.slider_layout = self.configslider()
+        self.thread_setup()
+        self.message_setup()
+        right_layout = self.set_btn()
+        
+        #main layout
+        layout = QVBoxLayout()
+        layout.addWidget(self.camera_shoot_layout)
+        layout.addLayout(self.slider_layout)
+        layout.addLayout(right_layout)
+        
+        #central widget  
+        widget = QWidget(self)
+        widget.setLayout(layout)
+        self.setCentralWidget(widget)
+        logger.info("MAIN LAYOUT COMPLETED")
+        #connections
+        self.start_button.clicked.connect(self.start)
+        self.close_button.clicked.connect(self.kill_thread)
+        self.close_button.setEnabled(False)
+
+    def configslider(self):
         # confidence slider setting 
         
         self.conf_options = [0.25, 0.50, 0.60, 0.80, 0.90]
@@ -46,59 +78,7 @@ class ConfigSlider(QWidget):
         slider_layout = QHBoxLayout()
         slider_layout.addWidget(self.slider)
         slider_layout.addWidget(self.config_label)
-    def update_conf(self, value):
-        self.th.confidence = self.conf_options[value]
-
-
-class Window(QMainWindow):
-    def __init__(self):
-        super().__init__()
-        self.setWindowTitle("Applus+ Vision 1.0")
-        self.setWindowIcon(QIcon("./Logo-Applus_orange.jpg"))
-        palette = QPalette()
-        palette.setColor(QPalette.Window, QColor(255, 255, 255))  # Set background color of the window
-        palette.setColor(QPalette.WindowText, QColor(0, 0, 0))  # Set text color to white
-        self.setPalette(palette)
-        self.setGeometry(0,0,800,500)
-
-        widget = QWidget(self)
-        layout = QVBoxLayout(self)
-        widget.setLayout(layout)
-        #message label
-        
-        self.camera_selection= QComboBox()
-        self.camera_selection.addItem("Camera 1")
-        self.camera_selection.addItem("Camera 2")
-        
-        #menu bar
-        menu_bar = self.menuBar()
-        file_menu = menu_bar.addMenu("Archivos")
-
-        load_action = QAction("Cargar image", self)
-        file_menu.addAction(load_action)
-        load_action.triggered.connect(self.load_file)
-        
-        self.camera_shoot_layout = CameraDisplay(self)
-        self.slider_layout = ConfigSlider(self)
-        self.thread_setup()
-        self.message_setup()
-        right_layout = self.set_btn()
-        
-        #main layout
-        layout = QVBoxLayout()
-        layout.addLayout(self.camera_shoot_layout)
-        layout.addLayout(self.slider_layout)
-        layout.addLayout(right_layout)
-        
-        #central widget  
-        widget = QWidget(self)
-        widget.setLayout(layout)
-        self.setCentralWidget(widget)
-        
-        #connections
-        self.start_button.clicked.connect(self.start)
-        self.close_button.clicked.connect(self.kill_thread)
-        self.close_button.setEnabled(False)
+        return slider_layout
         
     def thread_setup(self):
         self.th = Thread(self)
@@ -136,7 +116,6 @@ class Window(QMainWindow):
         self.close_button.setEnabled(False)
         self.start_button.setEnabled(True)
         self.message_label.setText("Deteccion finalizada")
-        self.th.cap.release()
         self.status = False
         self.th.terminate()
 
@@ -181,17 +160,19 @@ class Window(QMainWindow):
     @Slot()
     def load_file(self):
         options = QFileDialog.Options()
+        try:
+            file_path, _ = QFileDialog.getOpenFileName(self,
+                                                    "Open File",
+                                                    "",  # Initial directory
+                                                    "All Files (*);;Text Files (*.txt);;Images (*.png *.jpg)",  # File filters
+                                                    options=options
+                                                    )
+            if file_path:
+                self.th.file_path = file_path
+                logger.info("ARCHIVO CARGADO, PROCESA A INICIAR LA DETECTIONES")
+        except Exception as e:
+            logger.error(f"ARCHIVO NO LEIDO, ERROR: {e}")
+            self.th.file_path = ""
 
-        file_path, _ = QFileDialog.getOpenFileName(self,
-                                                  "Open File",
-                                                  "",  # Initial directory
-                                                   "All Files (*);;Text Files (*.txt);;Images (*.png *.jpg)",  # File filters
-                                                   options=options
-                                                  )
-        if file_path:
-            print("file loaded")
-            self.th.file_path = file_path
-        else:
-            print("file not readed")
         
         
